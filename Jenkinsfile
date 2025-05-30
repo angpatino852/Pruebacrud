@@ -91,7 +91,9 @@ pipeline {
 
     post {
         always {
-            // Aquí puedes añadir notificaciones o limpieza
+            steps { // ¡Añadido este bloque!
+                // Aquí puedes añadir notificaciones o limpieza
+            }
         }
     }
 }
