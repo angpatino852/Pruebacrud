@@ -5,7 +5,7 @@ pipeline {
         DOCKER_TAG = "localbuild-${env.BUILD_NUMBER}"
         BACKEND_IMAGE = "backend-app:${DOCKER_TAG}"
         FRONTEND_IMAGE = "frontend-app:${DOCKER_TAG}"
-        KUBECONFIG = "${HOME}/.kube/config"  // Asegúrate de que Jenkins pueda acceder
+        KUBECONFIG = "${HOME}/.kube/config"  // Asegúrate de que Jenkins pueda acceder pruebas
         NAMESPACE = "default"
     }
 
