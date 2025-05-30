@@ -1,24 +1,4 @@
-pipeline {
-    agent any
-
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '10'))
-    }
-
-    environment {
-        DOCKER_IMAGE_BACKEND = 'apatino123/mern-backend'
-        DOCKER_IMAGE_FRONTEND = 'apatino123/mern-frontend'
-        DOCKER_TAG = "${env.BUILD_NUMBER}"
-        K8S_NAMESPACE = 'default' // Puedes cambiar esto si tienes un namespace específico
-        APP_NAME_BACKEND = 'mern-backend-app'
-        APP_NAME_FRONTEND = 'mern-frontend-app'
-        DOCKERHUB_CREDS = credentials('dockerhub-creds')
-        KUBECONFIG_FILE = credentials('minikube-config')
-        GITHUB_CREDS = credentials('github-creds') // Asegúrate de tener esta credencial
-    }
-
-    stages {
+stages {
         stage('Checkout Code') {
             steps {
                 checkout([
@@ -48,6 +28,7 @@ pipeline {
             }
         }
 
+        /*
         stage('Push to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
@@ -65,6 +46,7 @@ pipeline {
                 }
             }
         }
+        */
 
         stage('Deploy to Kubernetes') {
             steps {
@@ -91,7 +73,7 @@ pipeline {
 
     post {
         always {
-            steps { // ¡Añadido este bloque!
+            steps {
                 // Aquí puedes añadir notificaciones o limpieza
             }
         }
