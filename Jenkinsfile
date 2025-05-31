@@ -2,66 +2,88 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_TAG = "localbuild-${env.BUILD_NUMBER}"
-        BACKEND_IMAGE = "backend-app:${DOCKER_TAG}"
-        FRONTEND_IMAGE = "frontend-app:${DOCKER_TAG}"
-        KUBECONFIG = "${HOME}/.kube/config"  // Asegúrate de que Jenkins pueda acceder pruebas
-        NAMESPACE = "default"
+        IMAGE_NAME_BACKEND = 'backend-app:localbuild-1'
+        IMAGE_NAME_FRONTEND = 'frontend-app:localbuild-1'
+        KUBECONFIG = 'C:\\Users\\TU_USUARIO\\.kube\\config' // <--- ACTUALIZA ESTO si no estás usando SYSTEM
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Clonar repositorio') {
             steps {
-                echo "Clonando repositorio público..."
                 git branch: 'main', url: 'https://github.com/angpatino852/Pruebacrud.git'
             }
         }
 
-        stage('Build Docker Images') {
-            parallel {
-                stage('Build Backend') {
-                    steps {
-                        dir('client/Backend') {
-                            sh "docker build -t ${BACKEND_IMAGE} ."
-                        }
-                    }
-                }
-                stage('Build Frontend') {
-                    steps {
-                        dir('client/frontend') {
-                            sh "docker build -t ${FRONTEND_IMAGE} ."
-                        }
-                    }
-                }
+        stage('Verificar conexión con Minikube') {
+            steps {
+                bat '''
+                echo Verificando conexión con Minikube...
+                kubectl config current-context
+                kubectl get nodes
+                '''
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Construir imágenes Docker en Minikube') {
             steps {
-                script {
-                    echo "Desplegando en Kubernetes local..."
+                bat '''
+                rem Configurar Docker para usar Minikube
+                call minikube -p minikube docker-env --shell=cmd > minikube_env.bat
+                call minikube_env.bat
 
-                    sh """
-                        export KUBECONFIG=${KUBECONFIG}
+                rem Construir imagen Backend
+                docker build -t backend-app:localbuild-1 ./client/Backend
 
-                        kubectl apply -f client/db/deployment-mongo.yaml -n ${NAMESPACE}
-                        kubectl apply -f client/Backend/backend-deploy.yaml -n ${NAMESPACE}
-                        kubectl apply -f client/frontend/front-deploy.yaml -n ${NAMESPACE}
+                rem Construir imagen Frontend
+                docker build -t frontend-app:localbuild-1 ./client/frontend
+                '''
+            }
+        }
 
-                        kubectl set image deployment/backend-app backend-app=${BACKEND_IMAGE} -n ${NAMESPACE}
-                        kubectl rollout status deployment/backend-app -n ${NAMESPACE} --timeout=300s
+        stage('Eliminar recursos anteriores') {
+            steps {
+                bat '''
+                kubectl delete -f client/db/deployment-mongo.yaml --ignore-not-found
+                kubectl delete -f client/db/service-mongo.yaml --ignore-not-found
+                kubectl delete -f client/Backend/backend-deploy.yaml --ignore-not-found
+                kubectl delete -f client/Backend/backend-service.yaml --ignore-not-found
+                kubectl delete -f client/frontend/front-deploy.yaml --ignore-not-found
+                kubectl delete -f client/frontend/front-service.yaml --ignore-not-found
+                kubectl delete -f secret.yaml --ignore-not-found
+                kubectl delete -f service.yaml --ignore-not-found
+                '''
+            }
+        }
 
-                        kubectl set image deployment/frontend-app frontend-app=${FRONTEND_IMAGE} -n ${NAMESPACE}
-                        kubectl rollout status deployment/frontend-app -n ${NAMESPACE} --timeout=300s
-                    """
-                }
+        stage('Desplegar recursos Kubernetes') {
+            steps {
+                bat '''
+                kubectl apply -f client/db/deployment-mongo.yaml --validate=false
+                kubectl apply -f client/db/service-mongo.yaml --validate=false
+                kubectl apply -f client/Backend/backend-deploy.yaml --validate=false
+                kubectl apply -f client/Backend/backend-service.yaml --validate=false
+                kubectl apply -f client/frontend/front-deploy.yaml --validate=false
+                kubectl apply -f client/frontend/front-service.yaml --validate=false
+                '''
+            }
+        }
+
+        stage('Verificar despliegues') {
+            steps {
+                bat '''
+                kubectl rollout status deployment/backend-app -n default --timeout=300s
+                kubectl rollout status deployment/frontend-app -n default --timeout=300s
+                '''
             }
         }
     }
 
     post {
-        always {
-            echo "Pipeline finalizado."
+        failure {
+            echo '❌ Falló el pipeline. Revisa los logs de Jenkins.'
+        }
+        success {
+            echo '✅ Despliegue exitoso en Minikube.'
         }
     }
 }
