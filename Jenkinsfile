@@ -46,9 +46,8 @@ pipeline {
 
                         echo.
                         echo --- Configurando Docker para usar Minikube ---
-                        call minikube -p minikube docker-env --shell=cmd > minikube_env.bat
-                        call minikube_env.bat
-                        del minikube_env.bat
+                        rem El comando @FOR /f ... ejecuta los comandos SET que genera minikube docker-env directamente
+                        @FOR /f "tokens=*" %%i IN ('minikube -p minikube docker-env --shell=cmd --no-vtx-check') DO @%%i
                         echo Variables de entorno de Docker de Minikube configuradas.
 
                         echo.
